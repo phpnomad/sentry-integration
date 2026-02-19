@@ -6,12 +6,9 @@ use PHPNomad\Core\Events\ItemLogged;
 use PHPNomad\Events\Interfaces\CanHandle;
 use PHPNomad\Events\Interfaces\Event;
 use PHPNomad\Sentry\Interfaces\SentryCaptureGate;
-use PHPNomad\Sentry\Interfaces\SentryDsnProvider;
 use Sentry\Breadcrumb;
-use Sentry\ClientBuilder;
 use Sentry\Event as SentryEvent;
 use Sentry\Severity;
-use Sentry\State\Hub;
 use Sentry\State\HubInterface;
 
 /** @implements CanHandle<ItemLogged> */
@@ -39,19 +36,10 @@ class SentryLogListener implements CanHandle
         ItemLogged::EMERGENCY => Breadcrumb::LEVEL_FATAL,
     ];
 
-    private ?HubInterface $hub = null;
-    private bool $initialized = false;
-
     public function __construct(
-        protected SentryDsnProvider $dsnProvider,
+        protected HubInterface $hub,
         protected SentryCaptureGate $captureGate
     ) {
-    }
-
-    /** @internal For testing only */
-    public function setHub(HubInterface $hub): void
-    {
-        $this->hub = $hub;
     }
 
     public function handle(Event $event): void
@@ -61,10 +49,6 @@ class SentryLogListener implements CanHandle
         }
 
         try {
-            if (!$this->ensureInitialized()) {
-                return;
-            }
-
             if ($this->captureGate->shouldCapture($event)) {
                 $this->capture($event);
             } else {
@@ -72,34 +56,6 @@ class SentryLogListener implements CanHandle
             }
         } catch (\Throwable) {
             // Monitoring must never crash the app
-        }
-    }
-
-    private function ensureInitialized(): bool
-    {
-        if ($this->initialized) {
-            return $this->hub !== null;
-        }
-
-        $this->initialized = true;
-
-        if ($this->hub !== null) {
-            return true;
-        }
-
-        $dsn = $this->dsnProvider->getDsn();
-
-        if (empty($dsn)) {
-            return false;
-        }
-
-        try {
-            $client = ClientBuilder::create(['dsn' => $dsn])->getClient();
-            $this->hub = new Hub($client);
-
-            return true;
-        } catch (\Throwable) {
-            return false;
         }
     }
 

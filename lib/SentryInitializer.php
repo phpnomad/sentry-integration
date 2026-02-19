@@ -7,6 +7,7 @@ use PHPNomad\Events\Interfaces\HasListeners;
 use PHPNomad\Loader\Interfaces\HasClassDefinitions;
 use PHPNomad\Sentry\Interfaces\SentryCaptureGate;
 use PHPNomad\Sentry\Listeners\SentryLogListener;
+use Sentry\State\HubInterface;
 
 class SentryInitializer implements HasListeners, HasClassDefinitions
 {
@@ -15,6 +16,7 @@ class SentryInitializer implements HasListeners, HasClassDefinitions
         return [
             SentryLogListener::class => SentryLogListener::class,
             DefaultSentryCaptureGate::class => SentryCaptureGate::class,
+            DsnConfiguredHub::class => HubInterface::class,
         ];
     }
 
