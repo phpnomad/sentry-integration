@@ -39,14 +39,18 @@ class SentryLogListener implements CanHandle
         ItemLogged::EMERGENCY => Breadcrumb::LEVEL_FATAL,
     ];
 
-    private ?HubInterface $hub;
+    private ?HubInterface $hub = null;
     private bool $initialized = false;
 
     public function __construct(
         protected SentryDsnProvider $dsnProvider,
-        protected SentryCaptureGate $captureGate,
-        ?HubInterface $hub = null
+        protected SentryCaptureGate $captureGate
     ) {
+    }
+
+    /** @internal For testing only */
+    public function setHub(HubInterface $hub): void
+    {
         $this->hub = $hub;
     }
 

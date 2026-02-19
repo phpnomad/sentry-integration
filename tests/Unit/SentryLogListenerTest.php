@@ -41,6 +41,20 @@ class SentryLogListenerTest extends TestCase
         return $mock;
     }
 
+    private function makeListenerWithHub(
+        HubInterface $hub,
+        ?SentryDsnProvider $dsnProvider = null,
+        ?SentryCaptureGate $gate = null
+    ): SentryLogListener {
+        $listener = new SentryLogListener(
+            $dsnProvider ?? $this->makeDsnProvider(),
+            $gate ?? new DefaultSentryCaptureGate()
+        );
+        $listener->setHub($hub);
+
+        return $listener;
+    }
+
     public function test_skips_non_item_logged_events()
     {
         $hub = $this->makeHub();
@@ -48,11 +62,7 @@ class SentryLogListenerTest extends TestCase
         $hub->shouldNotReceive('captureException');
         $hub->shouldNotReceive('addBreadcrumb');
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         $fakeEvent = Mockery::mock(\PHPNomad\Events\Interfaces\Event::class);
         $listener->handle($fakeEvent);
@@ -83,11 +93,7 @@ class SentryLogListenerTest extends TestCase
             })
             ->andReturn(EventId::generate());
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         $listener->handle(new ItemLogged(ItemLogged::ERROR, 'something broke'));
     }
@@ -102,11 +108,7 @@ class SentryLogListenerTest extends TestCase
             })
             ->andReturn(EventId::generate());
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         $listener->handle(new ItemLogged(ItemLogged::CRITICAL, 'critical failure'));
     }
@@ -121,11 +123,7 @@ class SentryLogListenerTest extends TestCase
             })
             ->andReturn(EventId::generate());
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         $listener->handle(new ItemLogged(ItemLogged::WARNING, 'a warning'));
     }
@@ -140,11 +138,7 @@ class SentryLogListenerTest extends TestCase
             ->with($exception)
             ->andReturn(EventId::generate());
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         $listener->handle(new ItemLogged(ItemLogged::ERROR, 'database error', ['exception' => $exception]));
     }
@@ -162,11 +156,7 @@ class SentryLogListenerTest extends TestCase
         $hub->shouldNotReceive('captureEvent');
         $hub->shouldNotReceive('captureException');
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         $listener->handle(new ItemLogged(ItemLogged::INFO, 'user logged in'));
     }
@@ -182,11 +172,7 @@ class SentryLogListenerTest extends TestCase
             ->andReturn(true);
         $hub->shouldNotReceive('captureEvent');
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         $listener->handle(new ItemLogged(ItemLogged::DEBUG, 'debug info'));
     }
@@ -198,11 +184,7 @@ class SentryLogListenerTest extends TestCase
             ->once()
             ->andThrow(new \RuntimeException('Sentry SDK exploded'));
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         // Should not throw
         $listener->handle(new ItemLogged(ItemLogged::ERROR, 'test'));
@@ -220,11 +202,7 @@ class SentryLogListenerTest extends TestCase
             })
             ->andReturn(EventId::generate());
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            new DefaultSentryCaptureGate(),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub);
 
         $listener->handle(new ItemLogged(ItemLogged::ERROR, 'checkout failed', $context));
     }
@@ -236,11 +214,7 @@ class SentryLogListenerTest extends TestCase
         $hub->shouldReceive('addBreadcrumb')->once()->andReturn(true);
         $hub->shouldNotReceive('captureEvent');
 
-        $listener = new SentryLogListener(
-            $this->makeDsnProvider(),
-            $this->makeGate(false),
-            $hub
-        );
+        $listener = $this->makeListenerWithHub($hub, gate: $this->makeGate(false));
 
         $listener->handle(new ItemLogged(ItemLogged::ERROR, 'suppressed error'));
     }
