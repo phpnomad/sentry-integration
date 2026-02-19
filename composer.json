@@ -1,0 +1,39 @@
+{
+    "name": "phpnomad/sentry-integration",
+    "description": "Sentry error monitoring integration for PHPNomad",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Alex Standiford",
+            "email": "alex@standiford.us"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "phpnomad/event": "^1.0",
+        "phpnomad/core": "^2.0",
+        "phpnomad/loader": "^1.0",
+        "sentry/sentry": "^4.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6",
+        "mockery/mockery": "^1.5",
+        "phpnomad/tests": "^0.3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PHPNomad\\Sentry\\": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PHPNomad\\Sentry\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    }
+}
