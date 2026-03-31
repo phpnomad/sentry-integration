@@ -12,8 +12,8 @@
     "require": {
         "php": ">=8.2",
         "phpnomad/event": "^1.0",
-        "phpnomad/core": "^2.0",
-        "phpnomad/loader": "^1.0",
+        "phpnomad/core": "^2.0 || ^3.0",
+        "phpnomad/loader": "^1.0 || ^2.0",
         "sentry/sentry": "^4.0"
     },
     "require-dev": {
