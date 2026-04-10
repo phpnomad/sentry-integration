@@ -1,6 +1,11 @@
-# PHPNomad Sentry Integration
+# phpnomad/sentry-integration
 
-Sentry error monitoring integration for PHPNomad applications. Transparently captures errors and exceptions via the PHPNomad logging system — no code changes needed in your application.
+[![Latest Version](https://img.shields.io/packagist/v/phpnomad/sentry-integration.svg)](https://packagist.org/packages/phpnomad/sentry-integration)
+[![Total Downloads](https://img.shields.io/packagist/dt/phpnomad/sentry-integration.svg)](https://packagist.org/packages/phpnomad/sentry-integration)
+[![PHP Version](https://img.shields.io/packagist/php-v/phpnomad/sentry-integration.svg)](https://packagist.org/packages/phpnomad/sentry-integration)
+[![License](https://img.shields.io/packagist/l/phpnomad/sentry-integration.svg)](https://packagist.org/packages/phpnomad/sentry-integration)
+
+Integrates Sentry with PHPNomad's logging. A listener subscribes to `ItemLogged` events from `phpnomad/core`, forwards WARNING and above to Sentry as captured events, and records lower-severity entries as breadcrumbs so they appear as context on the next error. Severity mapping, capture rules, and DSN sourcing are all override points.
 
 ## Installation
 
@@ -8,87 +13,50 @@ Sentry error monitoring integration for PHPNomad applications. Transparently cap
 composer require phpnomad/sentry-integration
 ```
 
-## Setup
+## What this provides
 
-### 1. Implement `SentryDsnProvider`
+- A listener that forwards `ItemLogged` events to Sentry, with automatic severity mapping from PHPNomad log levels to Sentry severities.
+- A `SentryCaptureGate` interface with a default implementation that captures WARNING and above. Override it to change what becomes an event versus a breadcrumb.
+- A `SentryDsnProvider` interface so the host application supplies the DSN from its own configuration source (environment variables, secrets manager, config file).
 
-Create a class that returns your Sentry DSN:
+## Requirements
+
+- `phpnomad/core` (provides the `ItemLogged` event)
+- `phpnomad/event` and `phpnomad/loader` for listener registration
+- `sentry/sentry` `^4.0`
+- PHP 8.2 or later
+
+## Usage
+
+Implement `SentryDsnProvider` with your application's DSN source, bind it in an initializer, and register `SentryInitializer` in your loader chain.
 
 ```php
+use PHPNomad\Loader\Interfaces\HasClassDefinitions;
 use PHPNomad\Sentry\Interfaces\SentryDsnProvider;
 
-class MySentryDsnProvider implements SentryDsnProvider
+class EnvDsnProvider implements SentryDsnProvider
 {
     public function getDsn(): string
     {
         return $_ENV['SENTRY_DSN'] ?? '';
     }
 }
-```
 
-### 2. Register initializers
-
-Add the Sentry initializer and your DSN provider binding to your application boot:
-
-```php
-use PHPNomad\Sentry\SentryInitializer;
-
-// In your initializer chain:
-new SentryInitializer(),
-new MyDsnProviderInitializer(), // binds MySentryDsnProvider => SentryDsnProvider
-```
-
-### 3. Done
-
-Any `$logger->error()`, `$logger->critical()`, etc. calls will now be captured in Sentry. Lower-severity logs (debug, info, notice) are added as breadcrumbs that appear as context on the next error.
-
-## How It Works
-
-- Listens to `ItemLogged` events broadcast by PHPNomad's logger
-- WARNING and above: captured as Sentry events
-- Below WARNING: added as Sentry breadcrumbs
-- If `$context['exception']` contains a `Throwable`, uses `captureException()` for full stack traces
-- Lazy initialization: Sentry SDK is only initialized on the first log event
-- Empty DSN gracefully no-ops (no errors if Sentry isn't configured)
-- All Sentry calls wrapped in try/catch — monitoring never crashes your app
-
-## Customizing the Capture Gate
-
-Override `SentryCaptureGate` to control what gets captured vs breadcrumbed:
-
-```php
-use PHPNomad\Core\Events\ItemLogged;
-use PHPNomad\Sentry\Interfaces\SentryCaptureGate;
-
-class MyCaptureGate implements SentryCaptureGate
+class AppSentryInitializer implements HasClassDefinitions
 {
-    public function shouldCapture(ItemLogged $event): bool
+    public function getClassDefinitions(): array
     {
-        // Only capture ERROR and above (skip warnings)
-        return $event->severityIs('>=', ItemLogged::ERROR);
+        return [EnvDsnProvider::class => SentryDsnProvider::class];
     }
 }
 ```
 
-Bind it in a later initializer to override the default:
+Add `SentryInitializer` and `AppSentryInitializer` to your loader. From that point forward, any `$logger->error()` or `$logger->critical()` call is forwarded to Sentry without further application changes. If the DSN is empty the hub no-ops, and all Sentry calls are wrapped in try/catch so monitoring never crashes the host app.
 
-```php
-return [MyCaptureGate::class => SentryCaptureGate::class];
-```
+## Documentation
 
-## Severity Mapping
-
-| PHPNomad Level | Sentry Severity |
-|----------------|-----------------|
-| DEBUG          | debug           |
-| INFO           | info            |
-| NOTICE         | info            |
-| WARNING        | warning         |
-| ERROR          | error           |
-| CRITICAL       | fatal           |
-| ALERT          | fatal           |
-| EMERGENCY      | fatal           |
+Framework docs live at [phpnomad.com](https://phpnomad.com). For Sentry client configuration, see the [Sentry PHP SDK documentation](https://docs.sentry.io/platforms/php/).
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).
