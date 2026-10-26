@@ -18,6 +18,7 @@ composer require phpnomad/sentry-integration
 - A listener that forwards `ItemLogged` events to Sentry, with automatic severity mapping from PHPNomad log levels to Sentry severities.
 - A `SentryCaptureGate` interface with a default implementation that captures WARNING and above. Override it to change what becomes an event versus a breadcrumb.
 - A `SentryDsnProvider` interface so the host application supplies the DSN from its own configuration source (environment variables, secrets manager, config file).
+- A `SentryClientOptionsProvider` interface so the host can set Sentry client options, such as `before_send`, `environment` and `release`. The client never sends default PII (`send_default_pii` is false) unless the host turns it on.
 
 ## Requirements
 
@@ -47,6 +48,30 @@ class AppSentryInitializer implements HasClassDefinitions
     public function getClassDefinitions(): array
     {
         return [EnvDsnProvider::class => SentryDsnProvider::class];
+    }
+}
+```
+
+To set client options, implement `SentryClientOptionsProvider` on the same DSN provider. The hub reads them when it builds the client, and the DSN always comes from `getDsn()`.
+
+```php
+use PHPNomad\Sentry\Interfaces\SentryClientOptionsProvider;
+use PHPNomad\Sentry\Interfaces\SentryDsnProvider;
+use Sentry\Event;
+
+class EnvDsnProvider implements SentryDsnProvider, SentryClientOptionsProvider
+{
+    public function getDsn(): string
+    {
+        return $_ENV['SENTRY_DSN'] ?? '';
+    }
+
+    public function getClientOptions(): array
+    {
+        return [
+            'environment' => $_ENV['APP_ENV'] ?? 'production',
+            'before_send' => fn(Event $event): ?Event => $event->setRequest([]),
+        ];
     }
 }
 ```
